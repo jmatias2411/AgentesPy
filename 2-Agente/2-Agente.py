@@ -1,13 +1,19 @@
 import os
 import json
+from datetime import datetime
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 
 MEMORY_FILE = "memoria.json"
+MODELO = "mistral"
 
-# Modelo inicial
-chat = ChatOllama(model="mistral")
+# Inicializa el modelo Ollama
+try:
+    chat = ChatOllama(model=MODELO)
+except Exception as e:
+    print(f"❌ Error al cargar el modelo Ollama '{MODELO}': {e}")
+    exit()
 
 # Prompt editable
 system_prompt = "Eres un asistente conversacional que recuerda lo que el usuario le ha dicho."
@@ -15,6 +21,28 @@ prompt_template = lambda sp: ChatPromptTemplate.from_messages([
     ("system", sp),
     MessagesPlaceholder(variable_name="messages")
 ])
+
+def mostrar_banner():
+    os.system("cls" if os.name == "nt" else "clear")
+    print(f"""
+ ________  ________  _______   ________   _________  _______                               _______         
+|\   __  \|\   ____\|\  ___ \ |\   ___  \|\___   ___\\  ___ \                             /  ___  \        
+\ \  \|\  \ \  \___|\ \   __/|\ \  \\ \  \|___ \  \_\ \   __/|         ____________      /__/|_/  /|       
+ \ \   __  \ \  \  __\ \  \_|/_\ \  \\ \  \   \ \  \ \ \  \_|/__      |\____________\    |__|//  / /       
+  \ \  \ \  \ \  \|\  \ \  \_|\ \ \  \\ \  \   \ \  \ \ \  \_|\ \     \|____________|        /  /_/__      
+   \ \__\ \__\ \_______\ \_______\ \__\\ \__\   \ \__\ \ \_______\                          |\________\    
+    \|__|\|__|\|_______|\|_______|\|__| \|__|    \|__|  \|_______|                           \|_______|    
+
+  💬 Modelo: {MODELO}   |   🕒 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+  (GitHub: https://github.com/jmatias2411/AgentesPy.git)
+
+🧠 Comandos disponibles:
+  /historial        → Mostrar historial de conversación
+  /limpiar          → Borrar la memoria guardada
+  /sistema <texto>  → Cambiar el prompt del sistema
+  /ayuda            → Mostrar esta lista de comandos
+  salir             → Cerrar el chatbot
+""")
 
 def cargar_memoria():
     if os.path.exists(MEMORY_FILE):
@@ -46,39 +74,60 @@ def guardar_memoria(history):
 
 def mostrar_historial(history):
     print("\n📜 Historial de conversación:")
-    for i, m in enumerate(history):
+    for m in history:
         prefix = "Tú" if isinstance(m, HumanMessage) else "Bot"
         print(f"{prefix}: {m.content}")
     print()
 
+def mostrar_ayuda():
+    print("""
+    🧠 Comandos disponibles:
+    /historial        → Mostrar historial de conversación
+    /limpiar          → Borrar la memoria guardada
+    /sistema <texto>  → Cambiar el prompt del sistema en caliente
+    /ayuda            → Mostrar esta lista de comandos
+    salir             → Cerrar el chatbot
+    """)
+
+def es_comando(texto):
+    return texto.startswith("/") or texto.lower() in ["salir", "exit", "quit"]
+
+def procesar_comando(texto, history):
+    global system_prompt
+    if texto.lower() in ["salir", "exit", "quit"]:
+        print("💾 Guardando memoria...")
+        guardar_memoria(history)
+        print("👋 Hasta luego!")
+        exit()
+
+    elif texto == "/limpiar":
+        history.clear()
+        guardar_memoria(history)
+        print("🧹 Memoria borrada.")
+
+    elif texto == "/historial":
+        mostrar_historial(history)
+    
+    elif texto == "/ayuda":
+        mostrar_ayuda()
+
+    elif texto.startswith("/sistema "):
+        system_prompt = texto.replace("/sistema ", "")
+        print(f"🔧 Nuevo prompt del sistema: {system_prompt}")
+
+    else:
+        print("❓ Comando no reconocido.")
+
 def main():
     global system_prompt
+    mostrar_banner()
     chat_history = cargar_memoria()
-    print("🤖 Chatbot con memoria y comandos activado. Escribe 'salir' para terminar.\n")
 
     while True:
-        user_input = input("Tú: ")
+        user_input = input("Tú: ").strip()
 
-        if user_input.lower() in ["salir", "exit", "quit"]:
-            print("💾 Guardando memoria...")
-            guardar_memoria(chat_history)
-            print("👋 Hasta luego!")
-            break
-
-        # 🛠 Comandos especiales
-        if user_input.strip() == "/limpiar":
-            chat_history = []
-            guardar_memoria(chat_history)
-            print("🧹 Memoria borrada.")
-            continue
-
-        if user_input.strip() == "/historial":
-            mostrar_historial(chat_history)
-            continue
-
-        if user_input.strip().startswith("/sistema "):
-            system_prompt = user_input.replace("/sistema ", "")
-            print(f"🔧 Nuevo prompt del sistema: {system_prompt}")
+        if es_comando(user_input):
+            procesar_comando(user_input, chat_history)
             continue
 
         # Conversación normal
