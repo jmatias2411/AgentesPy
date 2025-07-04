@@ -11,9 +11,14 @@ MEMORY_FILE = "memoria.json"
 # Modelo LLM local
 chat = ChatOllama(model="mistral")
 
-# Prompt general
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "Eres un asistente conversacional que recuerda lo que el usuario te ha dicho."),
+    (
+        "system",
+        "Eres *Orion*, un agente conversacional  en español, con memoria y capacidad de razonar. "
+        "Respondes de forma clara, cercana y didáctica. "
+        "Puedes usar herramientas como una calculadora para ayudar mejor al usuario. "
+        "Recuerda lo que el usuario te ha dicho antes y sé útil, empático y profesional."
+    ),
     MessagesPlaceholder(variable_name="messages")
 ])
 
@@ -48,7 +53,7 @@ def guardar_memoria(history):
 
 # Configuración inicial de la app
 st.set_page_config(page_title="Agente IA con memoria", layout="centered")
-st.title("🤖 Agente IA con memoria (local)")
+st.title("🧠 Orion: tu agente IA local con herramientas")
 
 # Cargar memoria en sesión
 if "history" not in st.session_state:
